@@ -403,6 +403,21 @@ export class AgentSessionRuntime {
 		this.beforeSessionInvalidate?.();
 		this.session.dispose();
 	}
+
+	/**
+	 * Create another live AgentSessionRuntime in this process, sharing the
+	 * same factory / agentDir. Used by RPC multi-session hosting: the new
+	 * runtime is independent (own SessionManager, cwd, prompt loop) and does
+	 * not replace this one.
+	 */
+	async spawnSibling(sessionManager: SessionManager): Promise<AgentSessionRuntime> {
+		return createAgentSessionRuntime(this.createRuntime, {
+			cwd: sessionManager.getCwd(),
+			agentDir: this.services.agentDir,
+			sessionManager,
+			sessionStartEvent: { type: "session_start", reason: "startup" },
+		});
+	}
 }
 
 /**

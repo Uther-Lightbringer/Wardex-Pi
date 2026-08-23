@@ -23,7 +23,17 @@ export type RpcCommand =
 	| { id?: string; type: "steer"; message: string; images?: ImageContent[] }
 	| { id?: string; type: "follow_up"; message: string; images?: ImageContent[] }
 	| { id?: string; type: "abort" }
-	| { id?: string; type: "new_session"; parentSession?: string }
+	| { id?: string; type: "new_session"; parentSession?: string; sessionId?: string }
+	/** Host a second live session in this RPC process (does not replace others). */
+	| {
+			id?: string;
+			type: "open_session";
+			sessionId: string;
+			sessionDir?: string;
+			cwd?: string;
+	  }
+	/** Dispose one hosted session; the process stays up if others remain. */
+	| { id?: string; type: "close_session"; sessionId: string }
 
 	// State
 	| { id?: string; type: "get_state" }
@@ -70,7 +80,16 @@ export type RpcCommand =
 	| { id?: string; type: "get_messages" }
 
 	// Commands (available for invocation via prompt)
-	| { id?: string; type: "get_commands" };
+	| { id?: string; type: "get_commands" }
+
+	// Direct tool invocation (host shells: no LLM, no conversation side effects)
+	| {
+			id?: string;
+			type: "invoke_tool";
+			tool: string;
+			args?: Record<string, unknown>;
+			timeoutMs?: number;
+	  };
 
 // ============================================================================
 // RPC Slash Command (for get_commands response)
@@ -119,6 +138,14 @@ export type RpcResponse =
 	| { id?: string; type: "response"; command: "follow_up"; success: true }
 	| { id?: string; type: "response"; command: "abort"; success: true }
 	| { id?: string; type: "response"; command: "new_session"; success: true; data: { cancelled: boolean } }
+	| {
+			id?: string;
+			type: "response";
+			command: "open_session";
+			success: true;
+			data: { sessionId: string; sessionFile?: string };
+	  }
+	| { id?: string; type: "response"; command: "close_session"; success: true; data: { sessionId: string } }
 
 	// State
 	| { id?: string; type: "response"; command: "get_state"; success: true; data: RpcSessionState }
@@ -227,8 +254,20 @@ export type RpcResponse =
 			data: { commands: RpcSlashCommand[] };
 	  }
 
+	// Direct tool invocation
+	| {
+			id?: string;
+			type: "response";
+			command: "invoke_tool";
+			success: true;
+			data: {
+				content: { type: "text" | "image"; text?: string; data?: string }[];
+				details: Record<string, unknown> | null;
+			};
+	  }
+
 	// Error response (any command can fail)
-	| { id?: string; type: "response"; command: string; success: false; error: string };
+	| { id?: string; type: "response"; command: string; success: false; error: string; sessionId?: string };
 
 // ============================================================================
 // Extension UI Events (stdout)

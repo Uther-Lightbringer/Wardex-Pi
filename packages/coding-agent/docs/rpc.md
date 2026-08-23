@@ -25,6 +25,8 @@ Common options:
 
 All commands support an optional `id` field for request/response correlation. If provided, the corresponding response will include the same `id`. `bash_execution_update` events also include the `id` of their originating `bash` command.
 
+All commands also support an optional `sessionId` field that selects a hosted live session in this process (see [open_session](#open_session)). Events and responses echo `sessionId`. When omitted, the process startup session is used.
+
 ### Framing
 
 RPC mode uses strict JSONL semantics with LF (`\n`) as the only record delimiter.
@@ -155,6 +157,29 @@ Response:
 If an extension cancelled:
 ```json
 {"type": "response", "command": "new_session", "success": true, "data": {"cancelled": true}}
+```
+
+#### open_session
+
+Host an additional live session in this RPC process without replacing the others. Each hosted session has its own `AgentSessionRuntime` (cwd, conversation tree, in-flight prompt). Commands and events may carry `sessionId` to select a hosted session; omitted `sessionId` targets the process startup session.
+
+```json
+{"type": "open_session", "sessionId": "wardex-session-uuid", "sessionDir": "/path/to/dir", "cwd": "/path/to/project"}
+```
+
+Response:
+```json
+{"type": "response", "command": "open_session", "success": true, "data": {"sessionId": "wardex-session-uuid", "sessionFile": "/path/to/dir/....jsonl"}, "sessionId": "wardex-session-uuid"}
+```
+
+Idempotent: opening an already-hosted `sessionId` returns success without creating a duplicate.
+
+#### close_session
+
+Dispose one hosted session. Other sessions in the process keep running.
+
+```json
+{"type": "close_session", "sessionId": "wardex-session-uuid"}
 ```
 
 ### State
